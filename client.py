@@ -4,7 +4,6 @@
 
 
 #trung- ui
-# hello
     def show_start_button(self):
         if hasattr(self, 'start_btn'):
             return
