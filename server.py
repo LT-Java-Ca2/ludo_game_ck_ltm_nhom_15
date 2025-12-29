@@ -238,3 +238,11 @@ class LudoServer:
                         self.game_state[f'{color}_positions'][i] = -1
                         
         return overlap_info
+# vy up tiep
+    def broadcast(self, data):
+        """Gửi đến tất cả clients"""
+        for client_info in self.clients[:]:
+            try:
+                self.send_data(client_info['socket'], data)
+            except Exception as e:
+                print(f"[ERROR] Broadcast failed to {client_info['player_id']}: {e}")
