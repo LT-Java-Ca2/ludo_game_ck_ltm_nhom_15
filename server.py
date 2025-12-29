@@ -168,3 +168,73 @@ class LudoServer:
         elif msg_type == 'next_turn':
             print(f"[SERVER] Chuyển lượt từ player {client_info['player_id']}")
             self.next_turn()
+
+#bao up tiep
+    def handle_move(self, client_info, data):
+        player_id = client_info['player_id']
+        color = client_info['color']
+        coin_number = data['coin_number']
+        new_position = data['new_position']
+        new_coord = data['new_coord']
+        
+        # Cập nhật game state
+        pos_key = f'{color}_positions'
+        coord_key = f'{color}_coords'
+        
+        old_position = self.game_state[pos_key][coin_number]
+        old_coord = self.game_state[coord_key][coin_number]
+        
+        self.game_state[pos_key][coin_number] = new_position
+        self.game_state[coord_key][coin_number] = new_coord
+        
+        print(f"[SERVER] {color} coin {coin_number+1}: {old_position}→{new_position}, coord: {old_coord}→{new_coord}")
+        
+        # Kiểm tra overlap (ăn quân)
+        overlap_info = []
+        safe_coords = [1, 14, 27, 40, 22, 9, 48, 35]
+        
+        if new_coord not in safe_coords and new_coord < 100 and     new_coord > -1:
+            overlap_info = self.check_overlap(color, new_coord)
+    
+        if overlap_info:
+            print(f"[SERVER] Overlap detected: {overlap_info}")
+        
+        # Broadcast move
+        broadcast_data = {
+            'type': 'coin_moved',
+            'player_id': player_id,
+            'color': color,
+            'coin_number': coin_number,
+            'new_position': new_position,
+            'new_coord': new_coord,
+            'overlap': overlap_info
+        }
+        print(f"[SERVER] Broadcasting move to all clients")
+        self.broadcast(broadcast_data)
+        
+        # Kiểm tra thắng
+        if new_position == 106:
+            self.check_winner(color, player_id)
+            
+    def check_overlap(self, moving_color, coord):
+        """
+        SỬA: Kiểm tra ăn quân - dùng COORD (tuyệt đối)
+        """
+        overlap_info = []
+        
+        # Kiểm tra từng màu khác
+        for color in self.player_colors:
+            if color != moving_color:
+                coord_key = f'{color}_coords'
+                for i, c in enumerate(self.game_state[coord_key]):
+                    if c == coord and c > -1 and c < 100:
+                        print(f"[SERVER] {moving_color} ăn {color} coin {i+1} tại coord {coord}")
+                        overlap_info.append({
+                            'color': color,
+                            'coin_number': i
+                        })
+                        # Reset về nhà
+                        self.game_state[coord_key][i] = -1
+                        self.game_state[f'{color}_positions'][i] = -1
+                        
+        return overlap_info
