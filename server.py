@@ -279,3 +279,12 @@ class LudoServer:
                 self.send_data(client_info['socket'], data)
             except Exception as e:
                 print(f"[ERROR] Broadcast failed to {client_info['player_id']}: {e}")
+                
+    def send_data(self, client, data):
+        """Gửi dữ liệu pickle"""
+        try:
+            serialized = pickle.dumps(data)
+            client.sendall(len(serialized).to_bytes(4, 'big'))
+            client.sendall(serialized)
+        except Exception as e:
+            print(f"[ERROR] Send data: {e}")
