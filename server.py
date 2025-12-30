@@ -238,6 +238,39 @@ class LudoServer:
                         self.game_state[f'{color}_positions'][i] = -1
                         
         return overlap_info
+
+
+#bao up tiep theo
+    def check_winner(self, color, player_id):
+        """Kiểm tra thắng - tất cả 4 quân về đích (106)"""
+        pos_key = f'{color}_positions'
+        all_home = all(pos == 106 for pos in self.game_state[pos_key])
+        
+        if all_home and color not in [w['color'] for w in self.game_state['winners']]:
+            rank = len(self.game_state['winners']) + 1
+            self.game_state['winners'].append({
+                'color': color,
+                'player_id': player_id,
+                'rank': rank
+            })
+            
+            print(f"[SERVER] {color} (Player {player_id+1}) đạt hạng {rank}!")
+            
+            self.broadcast({
+                'type': 'player_won',
+                'color': color,
+                'player_id': player_id,
+                'rank': rank
+            })
+            
+            # Game over khi 3/4 người thắng
+            if len(self.game_state['winners']) >= len(self.clients) - 1:
+                print("[SERVER] Game kết thúc!")
+                self.broadcast({
+                    'type': 'game_over',
+                    'winners': self.game_state['winners']
+                })
+                
 # vy up tiep
     def broadcast(self, data):
         """Gửi đến tất cả clients"""
