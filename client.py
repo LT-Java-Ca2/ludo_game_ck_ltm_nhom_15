@@ -1,7 +1,87 @@
+#an
+from tkinter import *
+from tkinter import messagebox, simpledialog
+from PIL import Image, ImageTk
+import time
+import socket
+import threading
+import pickle
 
+class LudoClient:
+    def __init__(self, root, six_side_block, five_side_block, four_side_block, 
+                 three_side_block, two_side_block, one_side_block, host='localhost', port=5555):
+        self.window = root
+        self.host = host
+        self.port = port
+        self.client_socket = None
+        self.my_player_id = None
+        self.my_color = None
+        self.connected = False
+        
+        self.make_canvas = Canvas(self.window, bg="#4d4dff", width=800, height=630)
+        self.make_canvas.pack(fill=BOTH, expand=1)
 
+        # Containers
+        self.made_red_coin = []
+        self.made_green_coin = []
+        self.made_yellow_coin = []
+        self.made_sky_blue_coin = []
+        self.red_number_label = []
+        self.green_number_label = []
+        self.yellow_number_label = []
+        self.sky_blue_number_label = []
+        self.block_value_predict = []
+        self.total_people_play = []
+        self.block_number_side = [one_side_block, two_side_block, three_side_block, 
+                                  four_side_block, five_side_block, six_side_block]
 
+        # Positions
+        self.red_coord_store = [-1, -1, -1, -1]
+        self.green_coord_store = [-1, -1, -1, -1]
+        self.yellow_coord_store = [-1, -1, -1, -1]
+        self.sky_blue_coord_store = [-1, -1, -1, -1]
+        self.red_coin_position = [-1, -1, -1, -1]
+        self.green_coin_position = [-1, -1, -1, -1]
+        self.yellow_coin_position = [-1, -1, -1, -1]
+        self.sky_blue_coin_position = [-1, -1, -1, -1]
 
+        # Counters
+        self.move_red_counter = 0
+        self.move_green_counter = 0
+        self.move_yellow_counter = 0
+        self.move_sky_blue_counter = 0
+        self.current_turn = -1
+        self.current_dice_value = 0
+        self.six_counter = 0
+        self.six_with_overlap = 0
+        
+        # Setup
+        self.board_set_up()
+        self.instruction_btn_red()
+        self.instruction_btn_sky_blue()
+        self.instruction_btn_yellow()
+        self.instruction_btn_green()
+        
+        for i in range(4):
+            self.block_value_predict[i][1]['state'] = DISABLED
+            self.block_value_predict[i][3]['state'] = DISABLED
+        
+        self.connect_to_server()
+
+    # ============ NETWORK ============
+    def connect_to_server(self):
+        try:
+            self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.client_socket.connect((self.host, self.port))
+            self.connected = True
+            thread = threading.Thread(target=self.receive_messages, daemon=True)
+            thread.start()
+            #messagebox.showinfo("Kết nối", "Đã kết nối đến server!")
+            print("[CLIENT] Đã kết nối thành công!")
+        except Exception as e:
+            #messagebox.showerror("Lỗi", f"Không thể kết nối: {e}")
+            print("[CLIENT] Không thể kết nối!")
+            self.window.destroy()
 
 #trung- ui
     def show_start_button(self):
