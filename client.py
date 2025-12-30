@@ -91,6 +91,18 @@ class LudoClient:
                                bg="green", fg="white", font=("Arial", 16, "bold"),
                                command=self.start_game)
         self.start_btn.place(x=320, y=280)
+
+    def start_game(self):
+        self.send_data({'type': 'start_game'})
+        if hasattr(self, 'start_btn'):
+            self.start_btn.destroy()
+
+    def update_turn_display(self):
+        for i in range(4):
+            self.block_value_predict[i][1]['state'] = DISABLED
+        if self.current_turn == self.my_player_id:
+            color_idx = ['red', 'sky_blue', 'yellow', 'green'].index(self.my_color)
+            self.block_value_predict[color_idx][1]['state'] = NORMAL
         
 
 
