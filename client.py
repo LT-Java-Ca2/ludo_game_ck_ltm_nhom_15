@@ -163,3 +163,29 @@ class LudoClient:
             self.move_yellow_counter = 0
         else:
             self.move_green_counter = 0
+    def get_absolute_coord(self, color, relative_pos):
+        """
+        Chuyển đổi vị trí tương đối (1-52) sang tuyệt đối để check overlap
+        """
+        if relative_pos == -1:
+            return -1
+        
+        if relative_pos >= 100:
+            return relative_pos  # Đã vào home, không cần chuyển
+        
+        # Offset điểm xuất phát của mỗi màu
+        start_offsets = {
+            'red': 0,        # Bắt đầu từ ô 1
+            'green': 13,     # Bắt đầu từ ô 14
+            'yellow': 26,    # Bắt đầu từ ô 27
+            'sky_blue': 39   # Bắt đầu từ ô 40
+        }
+        
+        offset = start_offsets.get(color, 0)
+        absolute = relative_pos + offset
+        
+        # Wrap around
+        if absolute > 52:
+            absolute = absolute - 52
+        
+        return absolute
