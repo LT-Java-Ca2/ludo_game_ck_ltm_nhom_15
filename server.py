@@ -321,3 +321,21 @@ class LudoServer:
             client.sendall(serialized)
         except Exception as e:
             print(f"[ERROR] Send data: {e}")
+
+    def receive_data(self, client):
+        """Nhận dữ liệu pickle"""
+        try:
+            size_bytes = client.recv(4)
+            if not size_bytes:
+                return None
+            size = int.from_bytes(size_bytes, 'big')
+            data = b''
+            while len(data) < size:
+                packet = client.recv(size - len(data))
+                if not packet:
+                    return None
+                data += packet
+            return pickle.loads(data)
+        except Exception as e:
+            print(f"[ERROR] Receive data: {e}")
+            return None
