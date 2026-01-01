@@ -103,6 +103,19 @@ class LudoClient:
         if self.current_turn == self.my_player_id:
             color_idx = ['red', 'sky_blue', 'yellow', 'green'].index(self.my_color)
             self.block_value_predict[color_idx][1]['state'] = NORMAL
+
+    def update_status(self, text):
+        if not hasattr(self, 'status_label'):
+            self.status_label = Label(self.make_canvas, text=text, 
+                                     bg="#4d4dff", fg="white", font=("Arial", 12, "bold"))
+            self.status_label.place(x=300, y=5)
+        else:
+            self.status_label.config(text=text)
+
+    def make_prediction(self, color):
+        if self.current_turn != self.my_player_id:
+            return
+        self.send_data({'type': 'roll_dice', 'color': color})
         
 
 
