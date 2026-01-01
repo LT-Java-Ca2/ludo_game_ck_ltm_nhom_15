@@ -270,7 +270,40 @@ class LudoServer:
                     'type': 'game_over',
                     'winners': self.game_state['winners']
                 })
-                
+
+#bao up het
+    def next_turn(self):
+        """
+        Chuyển lượt - Theo logic Ludo_game.py
+        - Ra 6 được tung lại
+        - Ăn quân được tung lại
+        - Ra 6 ba lần liên tiếp thì mất lượt
+        """
+        current_player = self.game_state['current_turn']
+        
+        # Lọc players còn chơi (chưa thắng)
+        active_players = [i for i, color in enumerate(self.game_state['players']) 
+                         if color not in [w['color'] for w in self.game_state['winners']]]
+        
+        if not active_players:
+            return
+        
+        # Tìm player tiếp theo
+        if current_player in active_players:
+            current_idx = active_players.index(current_player)
+            next_idx = (current_idx + 1) % len(active_players)
+            self.game_state['current_turn'] = active_players[next_idx]
+        else:
+            self.game_state['current_turn'] = active_players[0]
+        
+        print(f"[SERVER] Chuyển lượt sang player {self.game_state['current_turn']}")
+        
+        self.broadcast({
+            'type': 'turn_changed',
+            'current_turn': self.game_state['current_turn']
+        })
+            
+
 # vy up tiep
     def broadcast(self, data):
         """Gửi đến tất cả clients"""
