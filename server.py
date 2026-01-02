@@ -339,3 +339,26 @@ class LudoServer:
         except Exception as e:
             print(f"[ERROR] Receive data: {e}")
             return None
+        
+    def disconnect_client(self, client_info):
+        """Xử lý ngắt kết nối"""
+        print(f"[SERVER] Player {client_info['player_id']} ({client_info['color']}) ngắt kết nối")
+        if client_info in self.clients:
+            self.clients.remove(client_info)
+            self.broadcast({
+                'type': 'player_left',
+                'player_id': client_info['player_id'],
+                'color': client_info['color'],
+                'total_players': len(self.clients)
+            })
+        try:
+            client_info['socket'].close()
+        except:
+            pass
+
+if __name__ == '__main__':
+    print("=" * 50)
+    print("     LUDO GAME SERVER - Multiplayer")
+    print("=" * 50)
+    server = LudoServer()
+    server.start()
