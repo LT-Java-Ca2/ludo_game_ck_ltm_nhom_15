@@ -116,6 +116,211 @@ class LudoClient:
         if self.current_turn != self.my_player_id:
             return
         self.send_data({'type': 'roll_dice', 'color': color})
+
+    def handle_dice_result(self, color, value):
+        positions_map = {
+            'red': self.red_coin_position,
+            'sky_blue': self.sky_blue_coin_position,
+            'yellow': self.yellow_coin_position,
+            'green': self.green_coin_position
+        }
+        
+        temp_position = positions_map[color]
+        
+        if color == "red":
+            self.move_red_counter = value
+        elif color == "sky_blue":
+            self.move_sky_blue_counter = value
+        elif color == "yellow":
+            self.move_yellow_counter = value
+        else:
+            self.move_green_counter = value
+        
+        # Logic kiểm tra theo Ludo_game.py
+        can_move = False
+        all_in = all(pos == -1 for pos in temp_position)
+        
+        if value == 6:
+            self.six_counter += 1
+        else:
+            self.six_counter = 0
+        
+        if all_in and value == 6 and self.six_counter < 3:
+            can_move = True
+        elif not all_in and self.six_counter < 3:
+            for i, pos in enumerate(temp_position):
+                if pos == -1 and value == 6:
+                    can_move = True
+                    break
+                elif pos > -1 and pos < 100:
+                    can_move = True
+                    break
+                elif pos >= 100 and pos + value <= 106:
+                    can_move = True
+                    break
+        
+        if can_move:
+            color_idx = ['red', 'sky_blue', 'yellow', 'green'].index(color)
+            self.block_value_predict[color_idx][3]['state'] = NORMAL
+            if value == 6 and self.six_counter < 3:
+                self.block_value_predict[color_idx][1]['state'] = NORMAL
+        else:
+            messagebox.showinfo("Không di chuyển được", "Không có nước đi hợp lệ!")
+            self.send_data({'type': 'next_turn'})
+            self.six_counter = 0
+
+    def handle_remote_move(self, message):
+        """
+        SỬA: Xử lý di chuyển từ server (hiển thị trên màn hình)
+        """
+        color = message['color']
+        coin_number = message['coin_number']
+        new_position = message['new_position']
+        new_coord = message['new_coord']
+        
+        # Debug
+        print(f"[CLIENT] Remote move: {color} coin {coin_number+1}: pos={new_position}, coord={new_coord}")
+        
+        coins_map = {
+            'red': (self.red_coin_position, self.red_coord_store, 
+                    self.made_red_coin, self.red_number_label),
+            'green': (self.green_coin_position, self.green_coord_store, 
+                    self.made_green_coin, self.green_number_label),
+            'yellow': (self.yellow_coin_position, self.yellow_coord_store, 
+                    self.made_yellow_coin, self.yellow_number_label),
+            'sky_blue': (self.sky_blue_coin_position, self.sky_blue_coord_store, 
+                        self.made_sky_blue_coin, self.sky_blue_number_label)
+        }
+        
+        positions, coords, coins, labels = coins_map[color]
+        old_position = positions[coin_number]
+        old_coord = coords[coin_number]
+        
+        print(f"[CLIENT] Old: pos={old_position}, coord={old_coord}")
+        
+        # === PHẦN VẼ LÊN MÀN HÌNH ===
+        
+        # Trường hợp 1: Xuất chuồng (-1 → 1)
+        if old_position == -1 and new_position > -1:
+            print(f"[CLIENT] Xuất chuồng {color} coin {coin_number+1}")
+            self.move_coin_to_start(color, coin_number + 1)
+            # Cập nhật dữ liệu sau khi di chuyển
+            positions[coin_number] = new_position
+            coords[coin_number] = new_coord
+            
+        # Trường hợp 2: Di chuyển bình thường (chưa vào home)
+        elif old_position > -1 and old_position < 100 and new_position < 100:
+            steps = new_position - old_position
+            print(f"[CLIENT] Di chuyển {steps} bước trên đường chính")
+            
+            current_coords = self.make_canvas.coords(coins[coin_number])
+            if current_coords:
+                current_x = current_coords[0]
+                current_y = current_coords[1]
+                
+                # GỌI hàm di chuyển với animation
+                final_pos = self.motion_of_coin_fixed(
+                    old_position, 
+                    coins[coin_number], 
+                    labels[coin_number], 
+                    current_x + 10, 
+                    current_y + 5, 
+                    color, 
+                    steps
+                )
+                # Cập nhật dữ liệu sau khi di chuyển
+                positions[coin_number] = final_pos
+                coords[coin_number] = new_coord
+        
+        # Trường hợp 3: Từ đường chính vào home (old_position < 100, new_position >= 100)
+        elif old_position < 100 and new_position >= 100:
+            print(f"[CLIENT] Từ đường chính vào home: {old_position} -> {new_position}")
+            steps = new_position - old_position
+            current_coords = self.make_canvas.coords(coins[coin_number])
+            if current_coords:
+                current_x = current_coords[0]
+                current_y = current_coords[1]
+                
+                final_pos = self.motion_of_coin_fixed(
+                    old_position, 
+                    coins[coin_number], 
+                    labels[coin_number], 
+                    current_x + 10, 
+                    current_y + 5, 
+                    color, 
+                    steps
+                )
+                # Cập nhật dữ liệu sau khi di chuyển
+                positions[coin_number] = final_pos
+                coords[coin_number] = new_coord
+        
+        # Trường hợp 4: Di chuyển trong home (cả old và new đều >= 100)
+        elif old_position >= 100 and new_position >= 100:
+            print(f"[CLIENT] Di chuyển trong home: {old_position} -> {new_position}")
+            # QUAN TRỌNG: Tính số bước từ vị trí hiện tại trên màn hình đến new_position
+            # Đảm bảo quân cờ luôn đến đúng vị trí cuối cùng, bất kể animation trước đó
+            current_pos_on_screen = positions[coin_number]
+            
+            # Nếu vị trí hiện tại < old_position, có nghĩa là animation chưa hoàn thành
+            # Trong trường hợp này, chúng ta cần di chuyển từ vị trí hiện tại đến new_position
+            if current_pos_on_screen < old_position:
+                steps = new_position - current_pos_on_screen
+                print(f"[CLIENT] Animation chưa hoàn thành: current={current_pos_on_screen}, di chuyển {steps} bước")
+            else:
+                # Nếu vị trí hiện tại >= old_position, di chuyển từ old_position đến new_position
+                steps = new_position - old_position
+                print(f"[CLIENT] Di chuyển {steps} bước từ {old_position}")
+            
+            if steps <= 0:
+                # Nếu steps <= 0, có nghĩa là không cần di chuyển hoặc có lỗi
+                print(f"[CLIENT] Warning: steps <= 0 trong home, cập nhật trực tiếp")
+                positions[coin_number] = new_position
+                coords[coin_number] = new_coord
+            else:
+                # Lấy vị trí hiện tại của quân cờ trên canvas
+                current_coords = self.make_canvas.coords(coins[coin_number])
+                if current_coords:
+                    current_x = current_coords[0]
+                    current_y = current_coords[1]
+                    
+                    # QUAN TRỌNG: Di chuyển trực tiếp trong home với số bước chính xác
+                    # Sử dụng các hàm traversal để di chuyển từng bước
+                    traversal_funcs = {
+                        'red': self.room_red_traversal,
+                        'green': self.room_green_traversal,
+                        'yellow': self.room_yellow_traversal,
+                        'sky_blue': self.room_sky_blue_traversal
+                    }
+                    
+                    if color in traversal_funcs:
+                        # Sử dụng vị trí bắt đầu là max(current_pos_on_screen, old_position)
+                        # để đảm bảo quân cờ di chuyển từ vị trí đúng
+                        start_pos = max(current_pos_on_screen, old_position) if current_pos_on_screen >= 100 else old_position
+                        final_pos = traversal_funcs[color](
+                            coins[coin_number],
+                            labels[coin_number],
+                            current_x + 10,
+                            current_y + 5,
+                            steps,
+                            start_pos
+                        )
+                        # Cập nhật dữ liệu sau khi di chuyển - QUAN TRỌNG: luôn cập nhật = new_position
+                        positions[coin_number] = new_position
+                        coords[coin_number] = new_coord
+                    else:
+                        # Nếu không có hàm traversal, cập nhật trực tiếp
+                        positions[coin_number] = new_position
+                        coords[coin_number] = new_coord
+                else:
+                    # Nếu không có tọa độ, cập nhật trực tiếp
+                    positions[coin_number] = new_position
+                    coords[coin_number] = new_coord
+
+        # Xử lý overlap (ăn quân)
+        if 'overlap' in message and message['overlap']:
+            for overlap in message['overlap']:
+                print(f"[CLIENT] Overlap: {overlap['color']} coin {overlap['coin_number']+1}")
+                self.reset_coin_to_home(overlap['color'], overlap['coin_number'])
         
 
 
