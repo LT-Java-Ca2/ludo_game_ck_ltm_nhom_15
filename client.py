@@ -82,6 +82,75 @@ class LudoClient:
             #messagebox.showerror("Lỗi", f"Không thể kết nối: {e}")
             print("[CLIENT] Không thể kết nối!")
             self.window.destroy()
+    def send_data(self, data):
+        try:
+            serialized = pickle.dumps(data)
+            self.client_socket.sendall(len(serialized).to_bytes(4, 'big'))
+            self.client_socket.sendall(serialized)
+        except Exception as e:
+            print(f"Lỗi gửi: {e}")
+
+    def receive_messages(self):
+        while self.connected:
+            try:
+                size_bytes = self.client_socket.recv(4)
+                if not size_bytes:
+                    break
+                size = int.from_bytes(size_bytes, 'big')
+                data = b''
+                while len(data) < size:
+                    packet = self.client_socket.recv(size - len(data))
+                    if not packet:
+                        break
+                    data += packet
+                message = pickle.loads(data)
+                self.window.after(0, self.handle_server_message, message)
+            except Exception as e:
+                print(f"Lỗi nhận: {e}")
+                break
+        self.connected = False
+
+    def handle_server_message(self, message):
+        msg_type = message.get('type')
+        if msg_type == 'coin_moved':
+            print(f"[CLIENT] Nhận coin_moved: {message}")
+            
+        if msg_type == 'player_info':
+            self.my_player_id = message['player_id']
+            self.my_color = message['color']
+            
+        elif msg_type == 'player_joined':
+            total = message['total_players']
+            players = message['players']
+            self.total_people_play = list(range(len(players)))
+            self.update_status(f"Người chơi: {total}/4")
+            if total >= 2:
+                self.show_start_button()
+                
+        elif msg_type == 'game_started':
+            messagebox.showinfo("Game", "Bắt đầu!")
+            self.current_turn = message['current_turn']
+            self.update_turn_display()
+            
+        elif msg_type == 'dice_rolled':
+            value = message['value']
+            color = message['color']
+            color_idx = ['red', 'sky_blue', 'yellow', 'green'].index(color)
+            self.block_value_predict[color_idx][0]['image'] = self.block_number_side[value - 1]
+            
+            if message['player_id'] == self.my_player_id:
+                self.current_dice_value = value
+                self.handle_dice_result(color, value)
+            
+        elif msg_type == 'coin_moved':
+            self.handle_remote_move(message)
+            
+        elif msg_type == 'turn_changed':
+            self.current_turn = message['current_turn']
+            self.update_turn_display()
+            
+        elif msg_type == 'player_won':
+            messagebox.showinfo("Win!", f"{message['color']} top {message['rank']}!")
 
 #trung- ui
     def show_start_button(self):
