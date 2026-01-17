@@ -388,8 +388,16 @@ class LudoClient:
         # Xử lý overlap (ăn quân)
         if 'overlap' in message and message['overlap']:
             for overlap in message['overlap']:
-                print(f"[CLIENT] Overlap: {overlap['color']} coin {overlap['coin_number']+1}")
-                self.reset_coin_to_home(overlap['color'], overlap['coin_number'])
+                overlap_color = overlap['color']
+                overlap_coin_num = overlap['coin_number']
+                print(f"[CLIENT] {color} ăn {overlap_color} coin {overlap_coin_num+1}")
+                
+                # Reset quân bị ăn về nhà
+                self.reset_coin_to_home(overlap_color, overlap_coin_num)
+                
+                # Hiển thị thông báo
+                if overlap_color == self.my_color:
+                    messagebox.showinfo("Bị ăn quân!", f"Quân {overlap_coin_num+1} của bạn bị đánh về nhà!")
         
 
 
